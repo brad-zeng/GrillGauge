@@ -42,10 +42,11 @@ def create_bound_rect(bb, color='red'):
     bb = np.array(bb, dtype=np.float32)
     return plt.Rectangle((bb[0], bb[2]), bb[1]-bb[0], bb[3]-bb[2], color=color, fill=False, lw=3)
 
-def show_bound_box(im, bb):
-    plt.imshow(im)
-    plt.gca().add_patch(create_bound_rect(bb))
-    plt.show()
+def show_bound_box(im, bb_pred, bb_actual, ax=None):
+    ax=ax
+    ax.imshow(im)
+    ax.add_patch(create_bound_rect(bb_actual))
+    ax.add_patch(create_bound_rect(bb_pred, color='blue'))
     
 '''
 ============================================================
@@ -56,13 +57,11 @@ def show_bound_box(im, bb):
 class image_data(Dataset):
     def __init__(self, root_dir):
         self.root_dir = root_dir
+        print("create data class")
         annotations = pd.read_csv(self.root_dir+'_annotations_merged.csv')
         class_dict = {'well done': 0, 'medium well done': 1, 'medium': 2, 'medium rare': 3, 'rare': 4, 'blue rare': 5}
         annotations['class'] = annotations['class'].apply(lambda x:  class_dict[x])
         bound_boxes = []
-        reds = []
-        blues = []
-        greens = []
         for idx, row in annotations.iterrows():
             bb = create_bb_array(row)
             bound_boxes.append(bb)
@@ -177,9 +176,10 @@ def run():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.multiprocessing.freeze_support()
     num_classes = 6
-    num_epochs = 20
+    num_epochs = 16
     batch_size = 16
-    learning_rate = 0.01
+    max_learning_rate = 0.01
+    learning_rate = 0.0001 # initial
     split = 0.8
     dataset = image_data('./detect_steak.v2i.tensorflow/images/')
     # print(len(dataset))
@@ -196,15 +196,20 @@ def run():
     # change to true if you want to regenerate the thing
     rerun = False
     if rerun or not os.path.exists(PATH):
+        print("begin rerun")
 
         # loss func and optimizer
         criterion_class = nn.CrossEntropyLoss()
         criterion_bbox = nn.L1Loss(reduction='none')
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.002, momentum=0.9)
-        
+
+        step_size=(len(train_loader)/batch_size)*4
+        print(step_size)
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate, max_lr=max_learning_rate, step_size_up=step_size, mode='triangular2')
         train_loss = []
 
         for epoch in range(num_epochs):  # loop over the dataset multiple times
+            print("epoch: %d of %d" % (epoch+1, num_epochs))
             running_loss = 0.0
             for i, data in enumerate(train_loader, 0):
                 # get the inputs
@@ -225,38 +230,71 @@ def run():
                 loss = loss_class + loss_bbox/1000.0
                 loss.backward()
                 optimizer.step()
+                scheduler.step()
 
                 # print statistics
                 running_loss += loss.item()
                 train_loss.append(loss.item())
-                if i % 100 == 99:  # print every 100 mini-batches
-                    print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 100))
+                if i % 10 == 9:  # print every 10 mini-batches
+                    print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
                     running_loss = 0.0
 
             # TODO: uncomment if we bother to do a validation set
             # with torch.no_grad():
             #     correct = 0
             #     total = 0
-            #     for images, labels in valid_loader:
+            #     for images, bboxes, labels in valid_loader:
             #         images = images.to(device)
+            #         bboxes = bboxes.to(device)
             #         labels = labels.to(device)
-            #         outputs = model(images)
+            #         outputs, output_bbox = model(images)
             #         _, predicted = torch.max(outputs.data, 1)
             #         total += labels.size(0)
             #         correct += (predicted == labels).sum().item()
             #         del images, labels, outputs
-            
-            #     print('Accuracy of the network on the {} validation images: {} %'.format(5000, 100 * correct / total))
+            #     print('Accuracy of the network on the {} validation images: {} %'.format(len(test_loader), 100 * correct / total))
+        
+        # run one more time with massively decreased learning rate
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/100, max_lr=max_learning_rate/100, step_size_up=step_size, mode='triangular2')
+        for i, data in enumerate(train_loader, 0):
+            # get the inputs
+            inputs, bboxes, labels = data
+            inputs = inputs.to(device)
+            bboxes = bboxes.to(device)
+            labels = labels.to(device)
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            output_class, output_bbox = model(inputs)
+            loss_class = criterion_class(output_class, labels)
+            loss_bbox = criterion_bbox(output_bbox, bboxes).sum(1)
+            loss_bbox = loss_bbox.sum()
+            # might be scuffed
+            loss = loss_class + loss_bbox/1000.0
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+
+            # print statistics
+            running_loss += loss.item()
+            train_loss.append(loss.item())
+            if i % 10 == 9:  # print every 100 mini-batches
+                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
+                running_loss = 0.0
 
         print('Finished Training')
         train_legend = mlines.Line2D([], [], color='blue', label='Train Loss')
-        plt.plot(train_loss, label="train loss")
+        plt.plot(train_loss, label="Train Loss")
         plt.legend(handles=[train_legend])
-        plt.show()
+        plt.savefig('loss.png')
+        # plt.show()
 
         torch.save(model.state_dict(), PATH)
     
     else:
+        print("loading from file")
         model.load_state_dict(torch.load(PATH))
         model.eval()
 
@@ -271,9 +309,20 @@ def run():
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+
+            # print bounding boxes
+            # fig, axs = plt.subplots(ncols=4, nrows=4)
+            # for i in range(len(labels)):
+            #     img = images[i].detach().cpu().numpy()
+            #     img = np.rollaxis(img, 0, 3)
+            #     bbox_orig = bboxes[i].detach().cpu().numpy()
+            #     bbox_out = output_bbox[i].detach().cpu().numpy()
+            #     show_bound_box(img, bbox_out, bbox_orig, axs[int(i/4)][i%4])
+            # plt.show()
+
             del images, labels, outputs
-        
-        print('Accuracy of the network on the {} validation images: {} %'.format(len(test_loader), 100 * correct / total))
+        print('Accuracy of the network on the {} validation images: {} %'.format(len(test_loader)*batch_size, 100 * correct / total))
+
 
 # main function so it doesn't throw a multithread error
 if __name__ == '__main__':
