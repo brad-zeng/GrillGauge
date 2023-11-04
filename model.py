@@ -48,6 +48,17 @@ def show_bound_box(im, bb_pred, bb_actual, ax=None):
     ax.add_patch(create_bound_rect(bb_actual))
     ax.add_patch(create_bound_rect(bb_pred, color='blue'))
     
+def normalize(im):
+    mean=[0.5557, 0.4393, 0.3785]
+    std=[0.2852, 0.2857, 0.2876]
+    return (im-mean)/std
+
+def denormalize(im):
+    mean=[0.5557, 0.4393, 0.3785]
+    std=[0.2852, 0.2857, 0.2876]
+    temp = np.rollaxis(im, 0, 3)
+    return (temp*std)+mean
+
 '''
 ============================================================
                         DATA LOADING
@@ -90,7 +101,7 @@ class image_data(Dataset):
         path = self.filenames[index]
         x = cv2.imread(self.root_dir+path).astype(np.float32)
         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)/255
-        # x = self.transform(x)
+        x = normalize(x)
         x = np.rollaxis(x, 2)
         bb = self.bboxes[index]
         y = self.Y[index]
@@ -176,7 +187,7 @@ def run():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.multiprocessing.freeze_support()
     num_classes = 6
-    num_epochs = 50
+    num_epochs = 20
     batch_size = 16
     max_learning_rate = 0.01
     learning_rate = 0.0001 # initial
@@ -185,6 +196,7 @@ def run():
     # print(len(dataset))
     train_set, test_set = random_split(dataset, [math.floor(split*len(dataset)), math.ceil((1-split)*len(dataset))])
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    # print(len(train_loader))
     test_loader = DataLoader(test_set, batch_size=batch_size)
 
     # load model
@@ -203,8 +215,8 @@ def run():
         criterion_bbox = nn.L1Loss(reduction='none')
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.002, momentum=0.9)
 
-        step_size=(len(train_loader)/batch_size)*5
-        print(step_size)
+        step_size=(len(train_loader))*4
+        # print(step_size)
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate, max_lr=max_learning_rate, step_size_up=step_size, mode='triangular2')
         train_loss = []
 
@@ -214,7 +226,7 @@ def run():
             for i, data in enumerate(train_loader, 0):
                 # get the inputs
                 inputs, bboxes, labels = data
-                inputs = inputs.to(device)
+                inputs = inputs.to(device).float()
                 bboxes = bboxes.to(device)
                 labels = labels.to(device)
 
@@ -256,33 +268,34 @@ def run():
         
         # TODO: figure out super convergence
         # run one more time with massively decreased learning rate
-        # scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/100, max_lr=max_learning_rate/100, step_size_up=step_size, mode='triangular2')
-        # for i, data in enumerate(train_loader, 0):
-        #     # get the inputs
-        #     inputs, bboxes, labels = data
-        #     inputs = inputs.to(device)
-        #     bboxes = bboxes.to(device)
-        #     labels = labels.to(device)
+        print("one cycle LR super convergence")
+        scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=max_learning_rate/100, total_steps=len(train_loader))
+        for i, data in enumerate(train_loader, 0):
+            # get the inputs
+            inputs, bboxes, labels = data
+            inputs = inputs.to(device).float()
+            bboxes = bboxes.to(device)
+            labels = labels.to(device)
 
-        #     # zero the parameter gradients
-        #     optimizer.zero_grad()
+            # zero the parameter gradients
+            optimizer.zero_grad()
 
-        #     # forward + backward + optimize
-        #     output_class, output_bbox = model(inputs)
-        #     loss_class = criterion_class(output_class, labels)
-        #     loss_bbox = criterion_bbox(output_bbox, bboxes).sum(1)
-        #     loss_bbox = loss_bbox.sum()
-        #     # might be scuffed
-        #     loss = loss_class + loss_bbox/1000.0
-        #     loss.backward()
-        #     optimizer.step()
-        #     scheduler.step()
+            # forward + backward + optimize
+            output_class, output_bbox = model(inputs)
+            loss_class = criterion_class(output_class, labels)
+            loss_bbox = criterion_bbox(output_bbox, bboxes).sum(1)
+            loss_bbox = loss_bbox.sum()
+            # might be scuffed
+            loss = loss_class + loss_bbox/1000.0
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
 
             # print statistics
             running_loss += loss.item()
             train_loss.append(loss.item())
             if i % 10 == 9:  # print every 10 mini-batches
-                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
+                print('[%d, %5d] loss: %.3f' % (epoch + 2, i + 1, running_loss / 10))
                 running_loss = 0.0
 
         print('Finished Training')
@@ -303,7 +316,7 @@ def run():
         correct = 0
         total = 0
         for images, bboxes, labels in test_loader:
-            images = images.to(device)
+            images = images.to(device).float()
             bboxes = bboxes.to(device)
             labels = labels.to(device)
             outputs, output_bbox = model(images)
@@ -312,14 +325,13 @@ def run():
             correct += (predicted == labels).sum().item()
 
             # print image bounding boxes by batch
-            # fig, axs = plt.subplots(ncols=4, nrows=4)
-            # for i in range(len(labels)):
-            #     img = images[i].detach().cpu().numpy()
-            #     img = np.rollaxis(img, 0, 3)
-            #     bbox_orig = bboxes[i].detach().cpu().numpy()
-            #     bbox_out = output_bbox[i].detach().cpu().numpy()
-            #     show_bound_box(img, bbox_out, bbox_orig, axs[int(i/4)][i%4])
-            # plt.show()
+            fig, axs = plt.subplots(ncols=4, nrows=4)
+            for i in range(len(labels)):
+                img = images[i].detach().cpu().numpy()
+                bbox_orig = bboxes[i].detach().cpu().numpy()
+                bbox_out = output_bbox[i].detach().cpu().numpy()
+                show_bound_box(denormalize(img), bbox_out, bbox_orig, axs[int(i/4)][i%4])
+            plt.show()
 
             del images, labels, outputs
         print('Accuracy of the network on the {} validation images: {} %'.format(len(test_loader)*batch_size, 100 * correct / total))
