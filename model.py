@@ -167,6 +167,11 @@ class ResNet(nn.Module):
 
         return self.fc(x), self.fc_bb(x)
 
+'''
+============================================================
+                    RUNNING THE MODEL
+============================================================
+'''
 
 def run():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
