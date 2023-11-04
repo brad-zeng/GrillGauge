@@ -280,7 +280,7 @@ def run():
             # print statistics
             running_loss += loss.item()
             train_loss.append(loss.item())
-            if i % 10 == 9:  # print every 100 mini-batches
+            if i % 10 == 9:  # print every 10 mini-batches
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
                 running_loss = 0.0
 
@@ -310,7 +310,7 @@ def run():
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-            # print bounding boxes
+            # print image bounding boxes by batch
             # fig, axs = plt.subplots(ncols=4, nrows=4)
             # for i in range(len(labels)):
             #     img = images[i].detach().cpu().numpy()
