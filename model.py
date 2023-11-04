@@ -176,7 +176,7 @@ def run():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.multiprocessing.freeze_support()
     num_classes = 6
-    num_epochs = 16
+    num_epochs = 50
     batch_size = 16
     max_learning_rate = 0.01
     learning_rate = 0.0001 # initial
@@ -203,7 +203,7 @@ def run():
         criterion_bbox = nn.L1Loss(reduction='none')
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.002, momentum=0.9)
 
-        step_size=(len(train_loader)/batch_size)*4
+        step_size=(len(train_loader)/batch_size)*5
         print(step_size)
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate, max_lr=max_learning_rate, step_size_up=step_size, mode='triangular2')
         train_loss = []
@@ -254,28 +254,29 @@ def run():
             #         del images, labels, outputs
             #     print('Accuracy of the network on the {} validation images: {} %'.format(len(test_loader), 100 * correct / total))
         
+        # TODO: figure out super convergence
         # run one more time with massively decreased learning rate
-        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/100, max_lr=max_learning_rate/100, step_size_up=step_size, mode='triangular2')
-        for i, data in enumerate(train_loader, 0):
-            # get the inputs
-            inputs, bboxes, labels = data
-            inputs = inputs.to(device)
-            bboxes = bboxes.to(device)
-            labels = labels.to(device)
+        # scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/100, max_lr=max_learning_rate/100, step_size_up=step_size, mode='triangular2')
+        # for i, data in enumerate(train_loader, 0):
+        #     # get the inputs
+        #     inputs, bboxes, labels = data
+        #     inputs = inputs.to(device)
+        #     bboxes = bboxes.to(device)
+        #     labels = labels.to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+        #     # zero the parameter gradients
+        #     optimizer.zero_grad()
 
-            # forward + backward + optimize
-            output_class, output_bbox = model(inputs)
-            loss_class = criterion_class(output_class, labels)
-            loss_bbox = criterion_bbox(output_bbox, bboxes).sum(1)
-            loss_bbox = loss_bbox.sum()
-            # might be scuffed
-            loss = loss_class + loss_bbox/1000.0
-            loss.backward()
-            optimizer.step()
-            scheduler.step()
+        #     # forward + backward + optimize
+        #     output_class, output_bbox = model(inputs)
+        #     loss_class = criterion_class(output_class, labels)
+        #     loss_bbox = criterion_bbox(output_bbox, bboxes).sum(1)
+        #     loss_bbox = loss_bbox.sum()
+        #     # might be scuffed
+        #     loss = loss_class + loss_bbox/1000.0
+        #     loss.backward()
+        #     optimizer.step()
+        #     scheduler.step()
 
             # print statistics
             running_loss += loss.item()
