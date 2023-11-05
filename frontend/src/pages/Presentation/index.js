@@ -46,6 +46,7 @@ import routes from "routes";
 
 // Images
 import bgImage from "assets/images/bg-presentation.jpg";
+import GrillGauge from "assets/images/GrillGauge.png";
 
 function Presentation() {
   return (
@@ -64,7 +65,16 @@ function Presentation() {
       >
         <Container>
           <Grid container item xs={12} lg={7} justifyContent="center" mx="auto">
-            <MKTypography
+            <div
+              style={{
+                padding: "60px",
+              }}
+            >
+              <img src={GrillGauge} alt="Logo" />{" "}
+            </div>
+
+            <br />
+            {/* <MKTypography
               variant="h1"
               color="white"
               mt={-15}
@@ -76,7 +86,7 @@ function Presentation() {
               })}
             >
               GrillGauge{" "}
-            </MKTypography>
+            </MKTypography> */}
             <MKTypography
               variant="body1"
               color="white"
