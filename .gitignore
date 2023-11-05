@@ -1,2 +1,4 @@
 detect_steak.v2i.tensorflow/
 detect_steak.v2i.multiclass/
+cifar_net.pth
+data
