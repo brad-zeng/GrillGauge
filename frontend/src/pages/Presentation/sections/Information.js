@@ -27,8 +27,8 @@ import RotatingCardBack from "examples/Cards/RotatingCard/RotatingCardBack";
 import DefaultInfoCard from "examples/Cards/InfoCards/DefaultInfoCard";
 
 // Images
-import bgFront from "assets/images/rotating-card-bg-front.jpeg";
-import bgBack from "assets/images/rotating-card-bg-back.jpeg";
+import bgFront from "assets/images/steek.jpeg";
+import bgBack from "assets/images/Steekanalysis.png";
 
 function Information() {
   return (
@@ -37,28 +37,8 @@ function Information() {
         <Grid container item xs={11} spacing={3} alignItems="center" sx={{ mx: "auto" }}>
           <Grid item xs={12} lg={4} sx={{ mx: "auto" }}>
             <RotatingCard>
-              <RotatingCardFront
-                image={bgFront}
-                icon="touch_app"
-                title={
-                  <>
-                    Cook
-                    <br />
-                    Your Best
-                  </>
-                }
-                description="All the MUI components that you need in a development have been re-design with the new look."
-              />
-              <RotatingCardBack
-                image={bgBack}
-                title="Discover More"
-                description="You will save a lot of time going from prototyping to full-functional code because all elements are implemented."
-                action={{
-                  type: "internal",
-                  route: "/sections/page-sections/page-headers",
-                  label: "start with header",
-                }}
-              />
+              <RotatingCardFront image={bgFront} />
+              <RotatingCardBack image={bgBack} />
             </RotatingCard>
           </Grid>
           <Grid item xs={12} lg={7} sx={{ ml: "auto" }}>
@@ -89,8 +69,8 @@ function Information() {
               <Grid item xs={12} md={6}>
                 <DefaultInfoCard
                   icon="devices"
-                  title="Bounding Boxes"
-                  description="You can view the bounding boxes of the steak and the doneness level of each part of the steak."
+                  title="High Accuracy"
+                  description="Our advanced algorithms yield an accuracy upwards of 75% in determining the doneness of your steak."
                 />
               </Grid>
             </Grid>

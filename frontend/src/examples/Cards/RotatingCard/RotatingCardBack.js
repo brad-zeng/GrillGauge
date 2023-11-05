@@ -37,16 +37,12 @@ function RotatingCard({ color, image, title, description, action }) {
       coloredShadow={color}
       position="absolute"
       width="100%"
-      height="100%"
+      height="300px"
       top={0}
       left={0}
       zIndex={5}
       sx={{
-        backgroundImage: ({ palette: { gradients }, functions: { linearGradient, rgba } }) =>
-          `${linearGradient(
-            rgba(gradients[color] ? gradients[color].main : gradients.info.main, 0.85),
-            rgba(gradients[color] ? gradients[color].main : gradients.info.main, 0.85)
-          )}, url(${image})`,
+        backgroundImage: () => `url(${image})`,
         backgroundSize: "cover",
         backfaceVisibility: "hidden",
         transform: "rotateY(180deg)",
