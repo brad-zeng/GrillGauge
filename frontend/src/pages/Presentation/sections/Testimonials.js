@@ -44,7 +44,7 @@ function Information() {
           justifyContent="center"
           sx={{ mx: "auto", textAlign: "center" }}
         >
-          <MKTypography variant="h2">Why Meat Maestro?</MKTypography>
+          <MKTypography variant="h1">Why GrillGauge?</MKTypography> <br />
           <MKTypography variant="h3" color="info" textGradient mb={2}>
             Making a good steak is HARD
           </MKTypography>
@@ -58,8 +58,8 @@ function Information() {
           sx={{ mx: "auto", textAlign: "left" }}
         >
           <MKTypography variant="body1" color="text">
-            Many home chefs and grill enthusiasts struggle to consistently achieve their desired of
-            steak doneness, leading to subpar dining experiences and food waste. There is a need
+            Many home chefs and grill enthusiasts struggle to consistently achieve their desired
+            level of steak doneness, leading to subpar dining experiences and food waste. There is a
             need for a reliable and user-friendly website that accurately classifies the doneness of
             steaks, guiding users to cook their steaks to perfection, ensuring a delightful dining
             experience while reducing food wastage and the frustration associated with subpar

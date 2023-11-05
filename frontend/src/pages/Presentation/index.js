@@ -75,7 +75,7 @@ function Presentation() {
                 },
               })}
             >
-              Meat Maestro{" "}
+              GrillGauge{" "}
             </MKTypography>
             <MKTypography
               variant="body1"
@@ -84,7 +84,7 @@ function Presentation() {
               px={{ xs: 6, lg: 12 }}
               mt={-5}
             >
-              Master the art of cooking steak with Meat Maestro!
+              Master the art of cooking steak with GrillGauge!
             </MKTypography>
           </Grid>
         </Container>
