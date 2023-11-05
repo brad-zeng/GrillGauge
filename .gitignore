@@ -3,3 +3,4 @@ detect_steak.v2i.multiclass/
 cifar_net.pth
 data
 __pycache__
+.DS_Store
