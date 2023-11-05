@@ -1,0 +1,6 @@
+flask
+flask-cors
+torch
+cv2
+numpy
+base64
