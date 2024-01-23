@@ -159,4 +159,3 @@ dependencies:
     - opencv-python==4.8.1.78
     - torchaudio==2.1.0
     - torchvision==0.16.0
-prefix: C:\Users\BLi\anaconda3\envs\steak
